@@ -6,6 +6,8 @@
 
 #include "common/common/assert.h"
 
+#include <iostream>
+
 namespace Envoy {
 namespace Network {
 
@@ -46,28 +48,36 @@ void FilterManagerImpl::onContinueReading(ActiveReadFilter* filter,
 
   std::list<ActiveReadFilterPtr>::iterator entry;
   if (!filter) {
+    std::cout << "filter parameter not empty" << std::endl;
     entry = upstream_filters_.begin();
   } else {
+    std::cout << "filter parameter is empty" << std::endl;
     entry = std::next(filter->entry());
   }
 
+  int counter =  0;
   for (; entry != upstream_filters_.end(); entry++) {
+    counter++;
     if (!(*entry)->initialized_) {
       (*entry)->initialized_ = true;
       FilterStatus status = (*entry)->filter_->onNewConnection();
       if (status == FilterStatus::StopIteration || connection_.state() != Connection::State::Open) {
+        std::cout << "early return at point1" << std::endl;
         return;
       }
     }
 
     StreamBuffer read_buffer = buffer_source.getReadBuffer();
+    std::cout << "before onData call, buffer length: " << read_buffer.buffer.length() << std::endl;
     if (read_buffer.buffer.length() > 0 || read_buffer.end_stream) {
       FilterStatus status = (*entry)->filter_->onData(read_buffer.buffer, read_buffer.end_stream);
       if (status == FilterStatus::StopIteration || connection_.state() != Connection::State::Open) {
+        std::cout << "early return at point2" << std::endl;
         return;
       }
     }
   }
+  std::cout << "count number of filters: " << counter << std::endl;
 }
 
 void FilterManagerImpl::onRead() {

@@ -2,6 +2,7 @@
 
 #include <list>
 #include <memory>
+#include <iostream>
 
 #include "envoy/network/connection.h"
 #include "envoy/network/filter.h"
@@ -95,12 +96,47 @@ public:
   virtual void rawWrite(Buffer::Instance& data, bool end_stream) PURE;
 };
 
+template <typename T>
+void ignore(T &&){ }
+
+class DummyFilter : public Filter {
+public:
+  DummyFilter(){};
+  ~DummyFilter(){};
+
+  FilterStatus onData(Buffer::Instance& a, bool b) {
+      if((a.length() > 1024*1024 + 1) || b) {
+          std::cout << "debug: if branch in onData, make sure enter this dummy filter" << std::endl;
+      } else {
+          std::cout << "debug: else branch in onData, make sure enter this dummy filter" << std::endl;
+      }
+      return FilterStatus::Continue;
+  };
+  FilterStatus onNewConnection() {
+      return FilterStatus::Continue;
+  };
+  FilterStatus onWrite(Buffer::Instance& a, bool b) {
+      if((a.length() > 1024*1024 + 1) || b) {
+          std::cout << "debug: if branch in onWrite, make sure enter this dummy filter" << std::endl;
+      } else {
+          std::cout << "debug: else branch in onWrite, make sure enter this dummy filter" << std::endl;
+      }
+      return FilterStatus::Continue;
+  };
+  void initializeReadFilterCallbacks(ReadFilterCallbacks& a) override {
+      ignore(a);
+  };
+};
+
 /**
  * This is a filter manager for TCP (L4) filters. It is split out for ease of testing.
  */
 class FilterManagerImpl {
 public:
-  FilterManagerImpl(FilterManagerConnection& connection) : connection_(connection) {}
+  FilterManagerImpl(FilterManagerConnection& connection) : connection_(connection) {
+      ReadFilterSharedPtr p(new DummyFilter());
+      addReadFilter(p);
+  }
 
   void addWriteFilter(WriteFilterSharedPtr filter);
   void addFilter(FilterSharedPtr filter);
